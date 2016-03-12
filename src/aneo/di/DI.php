@@ -103,6 +103,7 @@ class DI
         $ref = new ReflectionFunction($closure);
         $methodDepends = $ref->getParameters();
         $params = $this->getParams($methodDepends);
+
         return $ref->invokeArgs($params);
     }
 
