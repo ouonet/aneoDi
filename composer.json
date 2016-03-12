@@ -1,0 +1,23 @@
+{
+     "name": "aneo/di",
+    "description": "Php Dependence Injection",
+    "homepage": "https://github.com/ouonet/aneoDi",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "neo",
+            "email": "50157272@qq.com"
+        }
+    ],
+    "keywords": ["ioc", "di","dependence injection"],
+    "require": {
+        "php": ">=5.3.0",
+        "aneo/cache": "^1.0"
+    },
+    "autoload": {
+        "psr-0": {"aneo\\": "src/aneo"}
+    },
+    "autoload-dev": {
+        "psr-0": {"": "test" }
+    }
+}
