@@ -9,7 +9,6 @@
 namespace aneo\di;
 
 
-use aneo\benchmark\Bench;
 use aneo\cache\Cache;
 use aneo\cache\CacheDataProvider;
 use ReflectionClass;
@@ -35,7 +34,7 @@ class DIMetaFactory implements CacheDataProvider
 
     function get($name)
     {
-        return json_encode($this->parseClass($name));
+        return $this->parseClass($name);
     }
 
     function isModifiedSince($name, $time)
@@ -51,6 +50,17 @@ class DIMetaFactory implements CacheDataProvider
         return 'diCache' . DIRECTORY_SEPARATOR . str_replace("\\", DIRECTORY_SEPARATOR, $name) . '_di.json';
     }
 
+    function encode($data){
+        return json_encode($data);
+    }
+    function decode($data){
+        return json_decode($data);
+    }
+
+    function initial($data){
+        $data->reflectionClass = $this->getReflectionClass($data->name);
+        return $data;
+    }
     /**
      * @param $name
      * @return ReflectionClass
@@ -58,7 +68,7 @@ class DIMetaFactory implements CacheDataProvider
     private function getReflectionClass($name)
     {
         if (!isset($this->reflectionClassCache[$name])) {
-            $this->reflectionClassCache[$name] = $reflectionClass = new ReflectionClass($name);
+            $this->reflectionClassCache[$name] = new ReflectionClass($name);
         }
         return $this->reflectionClassCache[$name];
     }
@@ -69,12 +79,7 @@ class DIMetaFactory implements CacheDataProvider
      */
     public function getMeta($name)
     {
-
-        $var = json_decode($this->cache->get($name, $this));
-        // because reflectionClass can't be serialized, so regenerate it after parse.
-        $var->reflectionClass = new ReflectionClass($var->name);
-        return $var;
-
+        return $this->cache->get($name, $this);
     }
 
     public function parseClass($name)

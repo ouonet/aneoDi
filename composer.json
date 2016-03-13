@@ -10,6 +10,7 @@
         }
     ],
     "keywords": ["ioc", "di","dependence injection"],
+    "minimum-stability": "dev",
     "require": {
         "php": ">=5.3.0",
         "aneo/cache": "^1.0"

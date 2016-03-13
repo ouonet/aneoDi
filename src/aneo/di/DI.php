@@ -9,19 +9,15 @@
 namespace aneo\di;
 
 
-use aneo\benchmark\Bench;
-use aneo\cache\Cache;
 use Closure;
-use ReflectionClass;
+use InvalidArgumentException;
 use ReflectionFunction;
 use ReflectionMethod;
-use ReflectionParameter;
 
 class DI
 {
     private $context = [];
     private $config = [];
-    private $meta = [];
     /**
      * @var DIMetaFactory;
      */
@@ -48,7 +44,7 @@ class DI
         return $this;
     }
 
-    public function get($name)
+    public function get($name, $clazz = '')
     {
         if (isset($_REQUEST[$name])) {
             return $_REQUEST[$name];
@@ -63,9 +59,77 @@ class DI
             } else {
                 $bean = $this->config[$name];
             }
+        } else if (!empty($clazz)) {
+            if (isset($this->config[$clazz])) {
+                if ($this->config[$clazz] instanceof Closure) {
+                    $bean = $this->callClosure($this->config[$clazz]);
+                } else {
+                    $bean = $this->config[$clazz];
+                }
+            } else {
+                // if not configured ,build an object
+                $meta = $this->diMetaFactory->getMeta($clazz);
+                /* @var $meta DIMetaClass */
+                $constructorParameters = $meta->constructParameters;
+                //构造器注入
+                if ($constructorParameters && count($constructorParameters)) {
+                    $params = $this->getParams($constructorParameters);
+                    $bean = $meta->reflectionClass->newInstanceArgs($params);
+                } else {
+                    $bean = new $name();
+                }
+                //属性注入
+//        $injectDepends = $meta->getInjectDepends();
+//        foreach ($injectDepends as $dep) {
+//            $fieldName = $dep->fieldName;
+//            $injectBean = $this->get($dep->injectBean);
+//
+//            $bean[$fieldName] = $injectBean;
+//            return $bean;
+//        }
+            }
+        }
+        $this->context[$name] = $bean;
+        return $bean;
+    }
+
+    public function findByName($name)
+    {
+        if (isset($_REQUEST[$name])) {
+            return $_REQUEST[$name];
+        }
+        if (isset($this->context[$name])) {
+            return $this->context[$name];
+        }
+        $bean = null;
+        if (isset($this->config[$name])) {
+            if ($this->config[$name] instanceof Closure) {
+                $bean = $this->callClosure($this->config[$name]);
+            } else {
+                $bean = $this->config[$name];
+            }
+        }
+        if (is_object($bean)) {
+            $clazz = get_class($bean);
+            $this->context[$clazz] = $bean;
+        }
+        $this->context[$name] = $bean;
+        return $bean;
+    }
+
+    public function findByClass($clazz)
+    {
+        $bean = null;
+        if (isset($this->config[$clazz])) {
+            if ($this->config[$clazz] instanceof Closure) {
+                $bean = $this->callClosure($this->config[$clazz]);
+            } else {
+                $bean = $this->config[$clazz];
+            }
         } else {
+
             // if not configured ,build an object
-            $meta = $this->diMetaFactory->getMeta($name);
+            $meta = $this->diMetaFactory->getMeta($clazz);
             /* @var $meta DIMetaClass */
             $constructorParameters = $meta->constructParameters;
             //构造器注入
@@ -73,7 +137,7 @@ class DI
                 $params = $this->getParams($constructorParameters);
                 $bean = $meta->reflectionClass->newInstanceArgs($params);
             } else {
-                $bean = new $name();
+                $bean = new $clazz();
             }
             //属性注入
 //        $injectDepends = $meta->getInjectDepends();
@@ -85,7 +149,7 @@ class DI
 //            return $bean;
 //        }
         }
-        $this->context[$name] = $bean;
+        $this->context[$clazz] = $bean;
         return $bean;
     }
 
@@ -117,14 +181,17 @@ class DI
         if ($methodDepends && count($methodDepends)) {
             foreach ($methodDepends as $dep) {
                 $paramName = $dep->name;
-                $paramValue = $this->get($paramName);
-                if (is_null($paramValue)) {
-                    $paramClass = $dep->clazz;
-                    if (!is_null($paramClass))
-                        array_push($params, $this->get($paramClass));
-                } else {
-                    array_push($params, $paramValue);
+                $paramValue = $this->findByName($paramName);
+                if(is_null($paramValue)){
+                    if(!empty($dep->clazz)){
+                        $paramValue = $this->findByClass($dep->clazz);
+                    }else{
+                        if(!$dep->isDefaultValueAvailable){
+                            throw new InvalidArgumentException("$dep->name can't found by di");
+                        }
+                    }
                 }
+                array_push($params, $paramValue);
             }
             return $params;
         }
